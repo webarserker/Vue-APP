@@ -7,6 +7,7 @@ brancher:
     - "dev"
     - "master"
 install:
-  - "npm install"  
+  - "cnpm install"  
 script:
+  - "node prod.server.js"
   - "npm run dev"
