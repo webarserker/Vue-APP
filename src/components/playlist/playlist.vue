@@ -1,0 +1,232 @@
+<template>
+	<transition name="list-fade">
+		<div class="playlist" v-show="showFlag" @click="hide">
+			<div class="list-wrapper" @click.stop>
+				<div class="list-header">
+					<h1 class="title" @click="changeMode">
+						<i class="icon" :class="iconMode"></i>
+						<span class="text">{{modeText}}</span>
+						<span @click="showConfirm" class="clear"><i class="icon-clear"></i></span>
+					</h1>
+				</div>
+				<Scroll ref="listContent" class="list-content" :refreshDelay="refreshDelay" :data="sequenceList">
+					<transition-group name="list" tag="ul">
+						<li :key="item.id" v-for="(item, index) in sequenceList" ref="listItem" class="item" @click="selectItem(item, index)">
+							<i class="current" :class="getCurrenticon(item)"></i>
+							<span class="text">{{item.name}}</span>
+							<span class="like" @click.stop="toggleFavorite(item)">
+								<i :class="getFavoriteIcon(item)"></i>
+							</span>
+							<span class="delete" @click.stop="deleteOne(item)">
+								<i class="icon-delete"></i>
+							</span>
+						</li>
+					</transition-group>
+				</Scroll>
+				<div class="list-operate">
+					<div @click="addSong" class="add">
+						<i class="icon-add"></i>
+						<span class="text">添加歌曲到队列</span>
+					</div>
+				</div>
+				<div class="list-close" @click="hide">
+					<span>关闭</span>
+				</div>
+			</div>
+			<Confirm @confirm="confirmClear" ref="confirm" text="确定要清空本宝宝吗？" confirmBtnText="清空"></Confirm>
+			<AddSong ref="addSong"></AddSong>
+		</div>
+	</transition>
+</template>
+
+<script type="text/ecmascript-6">
+	import {mapGetters, mapActions} from 'vuex'
+	import {playMode} from 'common/js/config'
+	import {playerMixin} from 'common/js/mixin'
+	import Scroll from 'base/scroll/scroll'
+	import Confirm from 'base/confirm/confirm'
+	import AddSong from 'components/add-song/add-song'
+	
+	export default {
+		mixins: [playerMixin],
+		data() {
+			return {
+				showFlag: false,
+				refreshDelay: 200
+			}
+		},
+		computed: {
+			modeText() {
+				return (this.mode === playMode.sequence) ? '顺序播放' : (this.mode === playMode.loop) ? '单曲循环' : '随机播放'
+			},
+			...mapGetters(['sequenceList'])
+		},
+		methods: {
+			addSong() {
+				this.$refs.addSong.show()
+			},
+			show() {
+				this.showFlag = true
+				setTimeout(() => {
+					this.$refs.listContent.refresh()
+					this.scrollToCurrent(this.currentSong)
+				}, 20)
+			},
+			scrollToCurrent(current) {
+				console.log(this.currentSong.id, this.sequenceList)
+				let index = this.sequenceList.findIndex((song) => {
+					return this.currentSong.id === song.id
+				})
+				console.log(index)
+				this.$refs.listContent.scrollToElement(this.$refs.listItem[index], 300)
+			},
+			hide() {
+				this.showFlag = false
+			},
+			deleteOne(item) {
+				this.deleteSong(item)
+				if (!this.playlist.length) {
+					this.hide()
+				}
+			},
+			showConfirm() {
+				this.$refs.confirm.show()
+			},
+			confirmClear() {
+				this.deleteSongList()
+			},
+			...mapActions([
+				'deleteSong',
+				'deleteSongList'
+			]),
+			selectItem(item, index) {
+				if (this.mode !== playMode.radom) {
+					// console.log(this.playlist)
+					index = this.playlist.findIndex((song) => {
+						console.log(song, item.id)
+						return item.id === song.id
+					})
+				}
+				console.log(index)
+				this.setCurrentIndex(index)
+				this.setPlaying(index)
+			},
+			getCurrenticon(item) {
+				if (item.id === this.currentSong.id) {
+					return 'icon-play'
+				}
+				return ''
+			}
+		},
+		components: {
+			Scroll,
+			Confirm,
+			AddSong
+		},
+		watch: {
+		}
+	}
+</script>
+
+<style scoped lang="stylus" rel="stylesheet/stylus">
+  @import "~common/stylus/variable"
+  @import "~common/stylus/mixin"
+
+  .playlist
+    position: fixed
+    left: 0
+    right: 0
+    top: 0
+    bottom: 0
+    z-index: 200
+    background-color: $color-background-d
+    &.list-fade-enter-active, &.list-fade-leave-active
+      transition: opacity 0.3s
+      .list-wrapper
+        transition: all 0.3s
+    &.list-fade-enter, &.list-fade-leave-to
+      opacity: 0
+      .list-wrapper
+        transform: translate3d(0, 100%, 0)
+    &.list-fade-enter
+    .list-wrapper
+      position: absolute
+      left: 0
+      bottom: 0
+      width: 100%
+      background-color: $color-highlight-background
+      .list-header
+        position: relative
+        padding: 20px 30px 10px 20px
+        .title
+          display: flex
+          align-items: center
+          .icon
+            margin-right: 10px
+            font-size: 30px
+            color: $color-theme-d
+          .text
+            flex: 1
+            font-size: $font-size-medium
+            color: $color-text-l
+          .clear
+            extend-click()
+            .icon-clear
+              font-size: $font-size-medium
+              color: $color-text-d
+      .list-content
+        max-height: 240px
+        overflow: hidden
+        .item
+          display: flex
+          align-items: center
+          height: 40px
+          padding: 0 30px 0 20px
+          overflow: hidden
+          &.list-enter-active, &.list-leave-active
+            transition: all 0.1s
+          &.list-enter, &.list-leave-to
+            height: 0
+          .current
+            flex: 0 0 20px
+            width: 20px
+            font-size: $font-size-small
+            color: $color-theme-d
+          .text
+            flex: 1
+            no-wrap()
+            font-size: $font-size-medium
+            color: $color-text-d
+          .like
+            extend-click()
+            margin-right: 15px
+            font-size: $font-size-small
+            color: $color-theme
+            .icon-favorite
+              color: $color-sub-theme
+          .delete
+            extend-click()
+            font-size: $font-size-small
+            color: $color-theme
+      .list-operate
+        width: 140px
+        margin: 20px auto 30px auto
+        .add
+          display: flex
+          align-items: center
+          padding: 8px 16px
+          border: 1px solid $color-text-l
+          border-radius: 100px
+          color: $color-text-l
+          .icon-add
+            margin-right: 5px
+            font-size: $font-size-small-s
+          .text
+            font-size: $font-size-small
+      .list-close
+        text-align: center
+        line-height: 50px
+        background: $color-background
+        font-size: $font-size-medium-x
+        color: $color-text-l
+</style>
